@@ -4,21 +4,19 @@
 
 ## Introduction
 
-Arista’s Zero Touch Provisioning is used to configure a switch without user intervention. Built to fully leverage the power of Arista’s Extensible Operating System (EOS), ZTP as-a-Service provides a flexible solution to onboard EOS devices into CloudVision as-a-Service
+Arista’s Zero Touch Provisioning is used to configure a switch without user intervention. Built to leverage Arista’s Extensible Operating System (EOS), ZTP as-a-Service provides a flexible solution to onboard EOS devices into CloudVision as-a-Service.
 
-CloudVision ZTPaaS Utils hosts different tools and scripts to support the ZTPaaS usecase on CloudVision as-a-service.
+CloudVision ZTPaaS Utils hosts different tools and scripts to support the Zero Touch Provisioning on CVaaS.
 
 
 
 ## Custom Bootstrap Script
 
-ZTP as-a-Service can be enabled via a custom bootstrap script and using a DHCP server option to point to that bootstrap script. This method obviates the need for supplying enrollment token using USB.
+The custom bootstrap script method can be used to ZTP enroll an Arista device in CVaaS. This method obviates the need for supplying an enrollment token, or the cluster URL in a USB drive. A locally hosted DHCP server can be configured to point the Arista device to this custom bootstrap script using the bootfile-name option.
 
+### Using the custom bootstrap script
 
-
-### Using Custom Bootstrap Script
-
-- Log in to the Clodvision as-a-service cluster and generate a token using the "Generate" option under "Devices/Onboard Devices" menu
+- Log in to the CVaaS cluster and generate a token using the "Generate" option under "Devices/Onboard Devices" menu
 
 - Download the custom bootstrap script and modify the "USER INPUT" section to specify the cluster url and the enrollment token:
 
