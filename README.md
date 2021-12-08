@@ -18,7 +18,7 @@ The custom bootstrap script method can be used to ZTP enroll an Arista device in
 
 - Log in to the CVaaS cluster and generate a token using the "Generate" option under "Devices/Onboard Devices" menu
 
-- Download the custom bootstrap script and modify the "USER INPUT" section to specify the cluster url and the enrollment token:
+- Download the custom bootstrap script and modify the "USER INPUT" section to specify the cluster URL and the enrollment token:
 
         ########### USER INPUT ############
         cvAddr = "www.cv-mycluster.arista.io"
