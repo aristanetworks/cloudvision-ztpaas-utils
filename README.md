@@ -10,11 +10,10 @@ CloudVision ZTPaaS Utils hosts different tools and scripts to support the Zero T
 
 
 
-## Custom Bootstrap Script
+## Bootstrap Script with a Token
 
-The custom bootstrap script method can be used to ZTP enroll an Arista device in CVaaS. This method obviates the need for supplying an enrollment token, or the cluster URL in a USB drive. A locally hosted DHCP server can be configured to point the Arista device to this custom bootstrap script using the bootfile-name option.
+Bootstrap script with a token provides an alternative way of ZTP enrolling an Arista device against CVaaS. The cluster URL and the organisation wide enrollment token can be supplied by the script as opposed to the two being supplied using a USB drive. A DHCP server co-located with the Arista device can be configured to serve this bootstrap script using the bootfile-name option. This bootstrap script, then, takes over and perform all the steps necessary to initate ZTP against the correct CVaaS cluster and tenant.
 
-### Using the custom bootstrap script
 
 - Log in to the CVaaS cluster and generate a token using the "Generate" option under "Devices/Onboard Devices" menu
 
