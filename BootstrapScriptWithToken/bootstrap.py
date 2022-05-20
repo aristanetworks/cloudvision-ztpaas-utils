@@ -11,11 +11,17 @@ import sys
 from SysdbHelperUtils import SysdbPathHelper
 import Cell
 import urlparse
+from EapiClientLib import EapiClient
 
 
 ############## USER INPUT #############
 cvAddr = ""
 enrollmentToken = ""
+# currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd. Enclosed in double quotes
+currentTimeDate = ""
+# timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
+# Rest of the world check switch CLI. Config>clock timezone?
+set_timezone = "PST8PDT" 
 
 
 ############## CONSTANTS ##############
@@ -42,6 +48,14 @@ def getValueFromFile( filename, key ):
             if key in line :
                return line.split( "=" )[ 1 ].rstrip( "\n" )
    return None
+#
+# Set the current time and date from the user input fields
+def setCurrentTimeDate(currentTimeDate, set_timezone):
+   set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
+   clock_cmds = ['config', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
+   set_clock = set_cli_privilege.runCmds(1, clock_cmds)
+   assert(set_clock['result'] !=0), sys.exit("Switch clock was not set. Exiting")
+
 
 
 ########### MAIN SCRIPT ##########
@@ -103,7 +117,7 @@ class BootstrapManager( object ):
 
       # sysdb paths accessed
       cellID = str( Cell.cellId() )
-      mibStatus = pathHelper.getEntity( "hardware/entmib" )
+      mibStatus = pathHelper.getEntity( "hardware/entmib" Clear-History)
       tpmStatus = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/status" )
       tpmConfig = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/config" )
 
@@ -189,6 +203,10 @@ if __name__ == "__main__":
       sys.exit( "error: address to CVP missing" )
    if enrollmentToken == "":
       sys.exit( "error: enrollment token missing" )
+   if currentTimeDate == "":
+      sys.exit("error: Current Time and Date missing")
+   else:
+      setCurrentTimeDate(currentTimeDate)
 
    # check whether it is cloud or on prem
    if cvAddr.find( "arista.io" ) != -1 :
