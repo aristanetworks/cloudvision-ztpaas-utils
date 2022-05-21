@@ -52,7 +52,7 @@ def getValueFromFile( filename, key ):
 # Set the current time and date from the user input fields
 def setCurrentTimeDate(currentTimeDate, set_timezone):
    set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
-   clock_cmds = ['enable', 'configure', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
+   clock_cmds = ['configure', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
    set_clock = set_cli_privilege.runCmds(1, clock_cmds)
    assert(set_clock['result'] !=0), sys.exit("Switch clock was not set. Exiting")
 
