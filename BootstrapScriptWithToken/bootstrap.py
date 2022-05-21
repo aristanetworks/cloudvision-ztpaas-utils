@@ -206,7 +206,7 @@ if __name__ == "__main__":
    if currentTimeDate == "":
       sys.exit("error: Current Time and Date missing")
    else:
-      setCurrentTimeDate(currentTimeDate)
+      setCurrentTimeDate(currentTimeDate, set_timezone)
 
    # check whether it is cloud or on prem
    if cvAddr.find( "arista.io" ) != -1 :
