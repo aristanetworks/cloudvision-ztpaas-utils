@@ -22,6 +22,11 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
         ########### USER INPUT ############
         cvAddr = "www.cv-mycluster.arista.io"
         enrollmentToken = "eyJhbGciOiJSUzI1Nixxx..."
+        # Enter currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd or ntp or NTP. Enclosed in double quotes
+        currentTimeDate = ""
+        # timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
+        # Rest of the world check switch CLI. Use the command config>clock timezone ?
+        set_timezone = "PST8PDT"
 
 - Host the script on a server locally, and modify the DHCP server to point to this script via option-67/bootfile-name option
 
