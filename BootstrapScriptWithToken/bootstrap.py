@@ -17,11 +17,11 @@ from EapiClientLib import EapiClient
 ############## USER INPUT #############
 cvAddr = ""
 enrollmentToken = ""
-# currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd. Enclosed in double quotes
+# currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd or ntp or NTP. Enclosed in double quotes
 currentTimeDate = ""
 # timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
-# Rest of the world check switch CLI. Config>clock timezone?
-set_timezone = "PST8PDT" 
+# Rest of the world check switch CLI. Config>clock timezone ?
+set_timezone = "PST8PDT"
 
 
 ############## CONSTANTS ##############
@@ -55,6 +55,13 @@ def setCurrentTimeDate(currentTimeDate, set_timezone):
    clock_cmds = ['configure', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
    set_clock = set_cli_privilege.runCmds(1, clock_cmds)
    assert(set_clock['result'] !=0), sys.exit("Switch clock was not set. Exiting")
+
+# Set NTP clock synchronization
+def setNTPsync(ntp_server):
+   set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
+   ntp_cmds = ['configure', 'ntp server {}'.format(ntp_server), 'exit']
+   config_ntp_server = set_cli_privilege.runCmds(1, ntp_cmds)
+   assert(config_ntp_server['result'] !=0), sys.exit("NTP server was not configured successfully. Exiting")
 
 
 
@@ -205,6 +212,9 @@ if __name__ == "__main__":
       sys.exit( "error: enrollment token missing" )
    if currentTimeDate == "":
       sys.exit("error: Current Time and Date missing")
+   elif currentTimeDate == "ntp" or currentTimeDate == "NTP":
+      setNTPsync(ntp_server = "time.google.com")
+      setNTPsync(ntp_server = "pool.ntp.org")
    else:
       setCurrentTimeDate(currentTimeDate, set_timezone)
 
