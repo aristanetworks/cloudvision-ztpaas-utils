@@ -23,6 +23,7 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
         cvAddr = "www.cv-mycluster.arista.io"
         enrollmentToken = "eyJhbGciOiJSUzI1Nixxx..."
         # Enter currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd or ntp or NTP. Enclosed in double quotes
+        # If NTP clock synchronization is desired, the default ntp servers are time.google.com, pool.ntp.org and their associated globally known IP addresses.
         currentTimeDate = ""
         # timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
         # Rest of the world check switch CLI. Use the command config>clock timezone ?

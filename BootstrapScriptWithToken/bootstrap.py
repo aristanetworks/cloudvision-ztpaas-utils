@@ -54,14 +54,17 @@ def setCurrentTimeDate(currentTimeDate, set_timezone):
    set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
    clock_cmds = ['configure', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
    set_clock = set_cli_privilege.runCmds(1, clock_cmds)
-   assert(set_clock['result'] !=0), sys.exit("Switch clock was not set. Exiting")
+   assert(set_clock['result'] !=0), sys.exit('Switch clock was not set. Exiting')
 
 # Set NTP clock synchronization
-def setNTPsync(ntp_server):
+def setNTPsync():
+   ntps = ['time.google.com', 'pool.ntp.org', '45.15.168.198', '216.239.35.4']
+   i=0
    set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
-   ntp_cmds = ['configure', 'ntp server {}'.format(ntp_server), 'exit']
-   config_ntp_server = set_cli_privilege.runCmds(1, ntp_cmds)
-   assert(config_ntp_server['result'] !=0), sys.exit("NTP server was not configured successfully. Exiting")
+   for i in range(len(ntps)):
+      ntp_cmds = ['configure', 'ntp server {}'.format(ntps[i]), 'exit']
+      config_ntp_server = set_cli_privilege.runCmds(1, ntp_cmds)
+      assert(config_ntp_server['result'] !=0), sys.exit('NTP server was not configured successfully. Exiting')
 
 
 
@@ -213,8 +216,7 @@ if __name__ == "__main__":
    if currentTimeDate == "":
       sys.exit("error: Current Time and Date missing")
    elif currentTimeDate == "ntp" or currentTimeDate == "NTP":
-      setNTPsync(ntp_server = "time.google.com")
-      setNTPsync(ntp_server = "pool.ntp.org")
+      setNTPsync()
    else:
       setCurrentTimeDate(currentTimeDate, set_timezone)
 
