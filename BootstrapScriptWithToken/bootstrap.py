@@ -11,11 +11,17 @@ import sys
 from SysdbHelperUtils import SysdbPathHelper
 import Cell
 import urlparse
+from EapiClientLib import EapiClient
 
 
 ############## USER INPUT #############
 cvAddr = ""
 enrollmentToken = ""
+# currentTimeDate format hh:mm:ss mm/dd/yyy or hh:mm:ss yyyy-mm-dd or ntp or NTP. Enclosed in double quotes
+currentTimeDate = ""
+# timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
+# Rest of the world check switch CLI. Config>clock timezone ?
+set_timezone = "PST8PDT"
 
 
 ############## CONSTANTS ##############
@@ -42,6 +48,24 @@ def getValueFromFile( filename, key ):
             if key in line :
                return line.split( "=" )[ 1 ].rstrip( "\n" )
    return None
+#
+# Set the current time and date from the user input fields
+def setCurrentTimeDate(currentTimeDate, set_timezone):
+   set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
+   clock_cmds = ['configure', 'clock timezone {}'.format(set_timezone), 'exit', 'clock set {}'.format(currentTimeDate)]
+   set_clock = set_cli_privilege.runCmds(1, clock_cmds)
+   assert(set_clock['result'] !=0), sys.exit('Switch clock was not set. Exiting')
+
+# Set NTP clock synchronization
+def setNTPsync():
+   ntps = ['time.google.com', 'pool.ntp.org', '45.15.168.198', '216.239.35.4']
+   i=0
+   set_cli_privilege = EapiClient(disableAaa=True, privLevel=15)
+   for i in range(len(ntps)):
+      ntp_cmds = ['configure', 'ntp server {}'.format(ntps[i]), 'exit']
+      config_ntp_server = set_cli_privilege.runCmds(1, ntp_cmds)
+      assert(config_ntp_server['result'] !=0), sys.exit('NTP server was not configured successfully. Exiting')
+
 
 
 ########### MAIN SCRIPT ##########
@@ -52,7 +76,7 @@ class BootstrapManager( object ):
 ##################################################################################
 # step 1: get client certificate using the enrollment token
 ##################################################################################
-   def getClientCerficates( self ):
+   def getClientCertificates( self ):
       with open( TOKEN_FILE_PATH, "w" ) as f:
          f.write( enrollmentToken )
 
@@ -89,7 +113,7 @@ class BootstrapManager( object ):
          self.key = basePath + "keys/client.key"
 
       print( "step 2 done, obtained client certificates location from TA" )
-      print( "ceriticate location: " + self.certificate )
+      print( "certificate location: " + self.certificate )
       print( "key location: " + self.key )
 
 ##################################################################################
@@ -103,7 +127,7 @@ class BootstrapManager( object ):
 
       # sysdb paths accessed
       cellID = str( Cell.cellId() )
-      mibStatus = pathHelper.getEntity( "hardware/entmib" )
+      mibStatus = pathHelper.getEntity( "hardware/entmib" Clear-History)
       tpmStatus = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/status" )
       tpmConfig = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/config" )
 
@@ -142,7 +166,7 @@ class BootstrapManager( object ):
       print( "step 3.2 done, executing the fetched bootstrap script" )
 
    def run( self ):
-      self.getClientCerficates()
+      self.getClientCertificates()
       self.getCertificatePaths()
       self.getBootstrapScript()
       self.executeBootstrap()
@@ -189,6 +213,12 @@ if __name__ == "__main__":
       sys.exit( "error: address to CVP missing" )
    if enrollmentToken == "":
       sys.exit( "error: enrollment token missing" )
+   if currentTimeDate == "":
+      sys.exit("error: Current Time and Date missing")
+   elif currentTimeDate == "ntp" or currentTimeDate == "NTP":
+      setNTPsync()
+   else:
+      setCurrentTimeDate(currentTimeDate, set_timezone)
 
    # check whether it is cloud or on prem
    if cvAddr.find( "arista.io" ) != -1 :
