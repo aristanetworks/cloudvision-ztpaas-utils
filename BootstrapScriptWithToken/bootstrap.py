@@ -76,7 +76,7 @@ class BootstrapManager( object ):
 ##################################################################################
 # step 1: get client certificate using the enrollment token
 ##################################################################################
-   def getClientCerficates( self ):
+   def getClientCertificates( self ):
       with open( TOKEN_FILE_PATH, "w" ) as f:
          f.write( enrollmentToken )
 
@@ -113,7 +113,7 @@ class BootstrapManager( object ):
          self.key = basePath + "keys/client.key"
 
       print( "step 2 done, obtained client certificates location from TA" )
-      print( "ceriticate location: " + self.certificate )
+      print( "certificate location: " + self.certificate )
       print( "key location: " + self.key )
 
 ##################################################################################
@@ -166,7 +166,7 @@ class BootstrapManager( object ):
       print( "step 3.2 done, executing the fetched bootstrap script" )
 
    def run( self ):
-      self.getClientCerficates()
+      self.getClientCertificates()
       self.getCertificatePaths()
       self.getBootstrapScript()
       self.executeBootstrap()
