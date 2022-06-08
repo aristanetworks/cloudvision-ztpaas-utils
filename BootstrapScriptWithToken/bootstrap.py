@@ -202,6 +202,7 @@ class OnPremBootstrapManager( BootstrapManager ):
       super( OnPremBootstrapManager, self ).__init__()
 
       self.bootstrapURL = self.getBootstrapURL( cvAddr )
+      self.redirectorURL = None
       self.tokenType = INGEST_TOKEN
       self.enrollAddr = self.bootstrapURL.netloc + ":" + INGEST_PORT
 
