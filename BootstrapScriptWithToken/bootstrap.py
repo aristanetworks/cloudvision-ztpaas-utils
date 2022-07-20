@@ -8,19 +8,26 @@ import requests
 import os
 import json
 import sys
-from SysdbHelperUtils import SysdbPathHelper
 import Cell
 import urlparse
 
 
-############## USER INPUT #############
+##############  USER INPUT  ##############
+# address for CVaaS, usually just "www.arista.io"
 cvAddr = ""
+
+# enrollment token to be copied from CVaaS Device Registration page
 enrollmentToken = ""
-# Add proxy url if device is behind proxy server
-# else leave it as an empty string
+
+# Add proxy url if device is behind proxy server, leave it as an empty string otherwise
 cvproxy = ""
 
-############## CONSTANTS ##############
+# eosUrl is an optional parameter, which needs to be added only if the EOS version
+# is <4.24, in which case, SysDbHelperUtils is not present on the device.
+eosUrl = ""
+
+
+##############  CONSTANTS  ##############
 SECURE_HTTPS_PORT = "443"
 SECURE_TOKEN = "token-secure"
 INGEST_PORT = "9910"
@@ -30,7 +37,7 @@ BOOT_SCRIPT_PATH = "/tmp/bootstrap-script"
 REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne"
 
 
-########### HELPER FUNCTIONS ##########
+##############  HELPER FUNCTIONS  ##############
 # Given a filepath and a key, getValueFromFile searches for key=VALUE in it
 # and returns the found value without any whitespaces. In case no key specified,
 # gives the first string in the first line of the file.
@@ -47,13 +54,42 @@ def getValueFromFile( filename, key ):
    return None
 
 
-########### MAIN SCRIPT ##########
+def tryImageUpgrade( e ):
+   # Raise import error if eosUrl is empty
+   if eosUrl == "":
+      print( "Specify eosUrl for EOS version upgrade" )
+      raise( e )
+   subprocess.call( [ "mv", "/mnt/flash/EOS.swi", "/mnt/flash/EOS.swi.bak" ] )
+   try:
+      cmd = "wget " + eosUrl + " -O " + "/mnt/flash/EOS.swi"
+      subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
+   except subprocess.CalledProcessError as err:
+      # If the link to eosUrl specified is incorrect, then revert back to the older version
+      subprocess.call( [ "mv", "/mnt/flash/EOS.swi.bak", "/mnt/flash/EOS.swi" ] )
+      print( err.output )
+      raise( err )
+   subprocess.call( [ "rm", "/mnt/flash/EOS.swi.bak" ] )
+   subprocess.call( [ "reboot" ] )
+
+
+##############  SysdbHelperUtils IMPORT HANDLING  ##############
+# SysdbHelperUtils library is not present in most EOS versions <4.24. Thus in such a
+# case, we locally upgrade the EOS version and reboot the  device. After the upgrade,
+# EOS version of device must be upgraded and import for SysdbHelperUtils will not fail.
+try:
+   from SysdbHelperUtils import SysdbPathHelper
+except ImportError as e:
+   tryImageUpgrade( e )
+
+
+##############  MAIN SCRIPT  ##############
 class BootstrapManager( object ):
    def __init__( self ):
       super( BootstrapManager, self ).__init__()
 
    def getBootstrapURL( self, url ):
       pass
+
 
 ##################################################################################
 # step 1: get client certificate using the enrollment token
@@ -62,25 +98,38 @@ class BootstrapManager( object ):
       with open( TOKEN_FILE_PATH, "w" ) as f:
          f.write( enrollmentToken )
 
-      cmd = "/usr/bin/TerminAttr"
+      # A timeout of 60 seconds is used with TerminAttr commands since in most
+      # versions of TerminAttr, the command execution does not finish if a wrong
+      # flag is specified leading to the catch block being never executed
+      cmd = "timeout 60s "
+      cmd += "/usr/bin/TerminAttr"
       cmd += " -cvauth " + self.tokenType + "," + TOKEN_FILE_PATH
       cmd += " -cvaddr " + self.enrollAddr
       cmd += " -enrollonly"
-      cmd += " -cvproxy=" + cvproxy
 
+      # Use cvproxy only when it is specified, this is to ensure that if we are on
+      # older version of EOS that doesn't support cvporxy flag, the script won't fail
+      if cvproxy != "":
+         cmd += " -cvproxy=" + cvproxy
 
       try:
          subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
       except subprocess.CalledProcessError as e:
-         print( e.output )
-         raise e
+         # If the above subprocess call gives an error, it means that -cvproxy
+         # flag is not present in the Terminattr version running on that device
+         # Hence we have to do an image upgrade in this case.
+         tryImageUpgrade( e )
+
       print( "step 1 done, exchanged enrollment token for client certificates" )
+
 
 ##################################################################################
 # Step 2: get the path of stored client certificate
 ##################################################################################
    def getCertificatePaths( self ):
-      cmd = "/usr/bin/TerminAttr"
+      # Timeout added for TerminAttr
+      cmd = "timeout 60s "
+      cmd += "/usr/bin/TerminAttr"
       cmd += " -cvaddr " + self.enrollAddr
       cmd += " -certsconfig"
 
@@ -98,6 +147,7 @@ class BootstrapManager( object ):
       print( "step 2 done, obtained client certificates location from TA" )
       print( "ceriticate location: " + self.certificate )
       print( "key location: " + self.key )
+
 
 ##################################################################################
 # step 3 get bootstrap script using the certificates
