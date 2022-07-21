@@ -38,6 +38,8 @@ REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne
 
 
 ##############  HELPER FUNCTIONS  ##############
+proxies = { "https" : cvproxy, "http" : cvproxy }
+
 # Given a filepath and a key, getValueFromFile searches for key=VALUE in it
 # and returns the found value without any whitespaces. In case no key specified,
 # gives the first string in the first line of the file.
@@ -159,7 +161,7 @@ class BootstrapManager( object ):
       try:
          payload = '{"key": {"system_id": "%s"}}' % serialNum
          response = requests.post( self.redirectorURL.geturl(), data=payload,
-               cert=( self.certificate, self.key ) )
+               cert=( self.certificate, self.key ), proxies=proxies )
          response.raise_for_status()
          clusters = response.json()[ 0 ][ "value" ][ "clusters" ][ "values" ]
          assignment = clusters [ 0 ][ "hosts" ][ "values" ][ 0 ]
@@ -197,7 +199,6 @@ class BootstrapManager( object ):
       self.checkWithRedirector( mibStatus.root.serialNum )
 
       # making the request and writing to file
-      proxies = { "https" : cvproxy }
       response = requests.get( self.bootstrapURL.geturl(), headers=headers,
             cert=( self.certificate, self.key ), proxies=proxies )
       response.raise_for_status()
