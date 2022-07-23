@@ -63,7 +63,7 @@ def tryImageUpgrade( e ):
       raise( e )
    subprocess.call( [ "mv", "/mnt/flash/EOS.swi", "/mnt/flash/EOS.swi.bak" ] )
    try:
-      cmd = "wget " + eosUrl + " -O " + "/mnt/flash/EOS.swi"
+      cmd = "wget {} -O /mnt/flash/EOS.swi; sudo ip netns exec default /usr/bin/FastCli -p15 -G -A -c $'configure\nboot system flash:/EOS.swi'".format(eosUrl)
       subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
    except subprocess.CalledProcessError as err:
       # If the link to eosUrl specified is incorrect, then revert back to the older version
