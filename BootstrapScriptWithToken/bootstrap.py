@@ -63,7 +63,8 @@ def tryImageUpgrade( e ):
       raise( e )
    subprocess.call( [ "mv", "/mnt/flash/EOS.swi", "/mnt/flash/EOS.swi.bak" ] )
    try:
-      cmd = "wget " + eosUrl + " -O " + "/mnt/flash/EOS.swi"
+      cmd = "wget {} -O /mnt/flash/EOS.swi; sudo ip netns exec default /usr/bin/FastCli \
+         -p15 -G -A -c $'configure\nboot system flash:/EOS.swi'".format(eosUrl)
       subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
    except subprocess.CalledProcessError as err:
       # If the link to eosUrl specified is incorrect, then revert back to the older version
@@ -117,10 +118,14 @@ class BootstrapManager( object ):
       try:
          subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
       except subprocess.CalledProcessError as e:
-         # If the above subprocess call gives an error, it means that -cvproxy
+         # If the above subprocess call times out, it means that -cvproxy
          # flag is not present in the Terminattr version running on that device
          # Hence we have to do an image upgrade in this case.
-         tryImageUpgrade( e )
+         if e.returncode == 124: # timeout
+            tryImageUpgrade( e )
+         else:
+            print( e.output )
+            raise e
 
       print( "step 1 done, exchanged enrollment token for client certificates" )
 
@@ -136,8 +141,7 @@ class BootstrapManager( object ):
       cmd += " -certsconfig"
 
       try:
-         response = subprocess.check_output( cmd,
-               shell=True, stderr=subprocess.STDOUT )
+         response = subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
          json_response = json.loads( response )
          self.certificate = str( json_response[ self.enrollAddr ][ 'certFile' ] )
          self.key = str( json_response[ self.enrollAddr ][ 'keyFile' ] )
