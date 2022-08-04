@@ -13,6 +13,9 @@ import urlparse
 
 
 ##############  USER INPUT  ##############
+# Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
+# By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
+
 # address for CVaaS, usually just "www.arista.io"
 cvAddr = ""
 
@@ -24,6 +27,7 @@ cvproxy = ""
 
 # eosUrl is an optional parameter, which needs to be added only if the EOS version
 # is <4.24, in which case, SysDbHelperUtils is not present on the device.
+# This needs to be a http URL pointing to a SWI image on the local network.
 eosUrl = ""
 
 
