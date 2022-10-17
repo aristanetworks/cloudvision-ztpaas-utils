@@ -4,12 +4,14 @@
 # that can be found in the COPYING file.
 
 import subprocess
+from time import time
 import requests
 import os
 import json
 import sys
 import Cell
 import urlparse
+from EapiClientLib import EapiClient
 
 
 ##############  USER INPUT  ##############
@@ -31,6 +33,12 @@ cvproxy = ""
 eosUrl = ""
 
 
+# timezone PST8PDT MST7MDT CST6CDT EST5EDT are valid US Timezones. Default PST8PDT
+# Rest of the world check switch CLI. Config>clock timezone ?
+timezone = "EST5EDT"
+ntpServers = [ '10.11.240.2' ]
+
+
 ##############  CONSTANTS  ##############
 SECURE_HTTPS_PORT = "443"
 SECURE_TOKEN = "token-secure"
@@ -43,6 +51,21 @@ REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne
 
 ##############  HELPER FUNCTIONS  ##############
 proxies = { "https" : cvproxy, "http" : cvproxy }
+
+
+# Set NTP clock synchronization
+def setNTPsync():
+   cliPrivilege = EapiClient( disableAaa=True, privLevel=15 )
+   for ntpServer in ntpServers:
+      ntp_cmds = ['configure', 'ntp server {}'.format(ntpServer), 'exit']
+      config_ntp_server = cliPrivilege.runCmds(1, ntp_cmds)
+      assert(config_ntp_server['result'] !=0), sys.exit('NTP server was not configured successfully. Exiting')
+
+   cliPrivilege = EapiClient(disableAaa=True, privLevel=15)
+   clock_cmds = ['configure', 'clock timezone {}'.format(timezone), 'exit']
+   set_timezone = cliPrivilege.runCmds(1, clock_cmds)
+   assert(set_timezone['result'] !=0), sys.exit('Switch clock was not set. Exiting')
+
 
 # Given a filepath and a key, getValueFromFile searches for key=VALUE in it
 # and returns the found value without any whitespaces. In case no key specified,
@@ -282,6 +305,9 @@ if __name__ == "__main__":
       sys.exit( "error: address to CVP missing" )
    if enrollmentToken == "":
       sys.exit( "error: enrollment token missing" )
+
+   if timezone != "":
+      setNTPsync()
 
    # check whether it is cloud or on prem
    if cvAddr.find( "arista.io" ) != -1 :
