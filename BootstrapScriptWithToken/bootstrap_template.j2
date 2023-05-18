@@ -14,24 +14,25 @@ import json
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
 
 # address for CVaaS, usually just "www.arista.io"
-cvAddr = ""
+cvAddr = {{ cvAddr }}
 
 # enrollment token to be copied from CVaaS Device Registration page
-enrollmentToken = ""
+enrollmentToken = {{ enrollmentToken }}
 
 # Add proxy url if device is behind proxy server, leave it as an empty string otherwise
-cvproxy = ""
+cvproxy = {{ cvproxy }}
 
 # eosUrl is an optional parameter, which needs to be added only if the EOS version
 # is <4.24, in which case, SysDbHelperUtils is not present on the device.
 # This needs to be a http URL pointing to a SWI image on the local network.
-eosUrl = ""
+eosUrl = {{ eosUrl }}
 
 # ntpServer is an optional parameter. If specified, the script will configure
 # the URL supplied in this variable to be used as the NTP server.
 # For example:
 # ntpServer = "ntp1.aristanetworks.com"
-ntpServer = ""
+ntpServer = {{ ntpServer }}
+
 
 
 ##############  CONSTANTS  ##############
