@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import json
+import signal
 
 ##############  USER INPUT  ##############
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
@@ -313,12 +314,23 @@ class BootstrapManager( object ):
 
    # execute the obtained bootstrap file
    def executeBootstrap( self ):
+      proc = None
+      def handleSigterm( sig, frame ):
+         if proc is not None:
+            proc.terminate()
+         sys.exit( 127 + signal.SIGTERM )
       # The bootstrap script and challenge script anyway contain the required shebang for a
       # particualar EOS version, hence instead of re-evaluating here, we can easily just execute
       # it from that shebang itself.
       cmd = [ "chmod +x " + BOOT_SCRIPT_PATH ]
       try:
-         subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
+	 signal.signal( signal.SIGTERM, handleSigterm )
+         proc = subprocess.Popen( [ cmd ], shell=True, stderr=subprocess.STDOUT,
+                                  env=os.environ )
+         proc.communicate()
+         if proc.returncode:
+            print( "Bootstrap script failed with return code {}".format(proc.returncode))
+            sys.exit( proc.returncode )
       except subprocess.CalledProcessError as e:
          print( e.output )
          raise e
