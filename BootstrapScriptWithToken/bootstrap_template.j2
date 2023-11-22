@@ -324,7 +324,7 @@ class BootstrapManager( object ):
       # it from that shebang itself.
       cmd = [ "chmod +x " + BOOT_SCRIPT_PATH ]
       try:
-	 signal.signal( signal.SIGTERM, handleSigterm )
+         signal.signal( signal.SIGTERM, handleSigterm )
          proc = subprocess.Popen( [ cmd ], shell=True, stderr=subprocess.STDOUT,
                                   env=os.environ )
          proc.communicate()
