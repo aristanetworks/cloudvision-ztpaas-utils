@@ -329,7 +329,6 @@ class BootstrapManager( object ):
          print( e.output )
          raise e
       print( "step 3.2.1 done, setup execution permissions for bootstrap script" )
-      
       cmd = BOOT_SCRIPT_PATH
       os.environ['CVPROXY'] = cvproxy
       try:
