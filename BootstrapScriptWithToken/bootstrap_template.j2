@@ -324,6 +324,14 @@ class BootstrapManager( object ):
       # it from that shebang itself.
       cmd = [ "chmod +x " + BOOT_SCRIPT_PATH ]
       try:
+         subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
+      except subprocess.CalledProcessError as e:
+         print( e.output )
+         raise e
+      print( "step 3.2.1 done, setup execution permissions for bootstrap script" )
+      cmd = BOOT_SCRIPT_PATH
+      os.environ['CVPROXY'] = cvproxy
+      try:
          signal.signal( signal.SIGTERM, handleSigterm )
          proc = subprocess.Popen( [ cmd ], shell=True, stderr=subprocess.STDOUT,
                                   env=os.environ )
@@ -331,16 +339,6 @@ class BootstrapManager( object ):
          if proc.returncode:
             print( "Bootstrap script failed with return code {}".format(proc.returncode))
             sys.exit( proc.returncode )
-      except subprocess.CalledProcessError as e:
-         print( e.output )
-         raise e
-      print( "step 3.2.1 done, setup execution permissions for bootstrap script" )
-
-      cmd = BOOT_SCRIPT_PATH
-      os.environ['CVPROXY'] = cvproxy
-      try:
-         subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT,
-                                  env=os.environ )
       except subprocess.CalledProcessError as e:
          print( e.output )
          raise e
