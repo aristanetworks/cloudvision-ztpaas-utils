@@ -48,7 +48,7 @@ INGEST_TOKEN = "token"
 TOKEN_FILE_PATH = "/tmp/token.tok"
 BOOT_SCRIPT_PATH = "/tmp/bootstrap-script"
 REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne"
-
+VERSION = "1.0.0"
 
 ##############  HELPER FUNCTIONS  ##############
 proxies = { "https" : cvproxy, "http" : cvproxy }
@@ -225,8 +225,24 @@ class BootstrapManager( object ):
    def __init__( self ):
       super( BootstrapManager, self ).__init__()
 
-   def getBootstrapURL( self, url ):
-      pass
+   def getBootstrapURL( self, addr ):
+      # urlparse in py3 parses correctly only if the url is properly introduced by //
+      if not ( addr.startswith( '//' ) or addr.startswith( 'http://' ) or
+               addr.startswith( 'https://' ) ):
+         addr = '//' + addr
+      if isinstance( self, CloudBootstrapManager ):
+         addr = addr.replace( "apiserver", "www" )
+      addrURL = urlparse( addr )
+      if addrURL.netloc == "":
+         addrURL = addrURL._replace( path="", netloc=addrURL.path )
+      if addrURL.path == "":
+         addrURL = addrURL._replace( path="/ztp/bootstrap" )
+      if addrURL.scheme == "":
+         if isinstance( self, CloudBootstrapManager ):
+            addrURL = addrURL._replace( scheme="https" )
+         else:
+            addrURL = addrURL._replace( scheme="http" )
+      return addrURL
 
 
 ##################################################################################
@@ -336,6 +352,7 @@ class BootstrapManager( object ):
       headers[ 'X-Arista-SoftwareVersion' ] = getValueFromFile(
             "/etc/swi-version", "SWI_VERSION" )
       headers[ 'X-Arista-Architecture' ] = getValueFromFile( "/etc/arch", "" )
+      headers[ 'X-Arista-CustomBootScriptVersion' ] = VERSION
 
       # get the URL to the right cluster
       self.checkWithRedirector( mibStatus.root.serialNum )
@@ -399,21 +416,6 @@ class CloudBootstrapManager( BootstrapManager ):
       self.enrollAddr = self.bootstrapURL.netloc + ":" + SECURE_HTTPS_PORT
       self.enrollAddr = self.enrollAddr.replace( "www", "apiserver" )
 
-   def getBootstrapURL( self, addr ):
-      # urlparse in py3 parses correctly only if the url is properly introduced by //
-      if not ( addr.startswith( '//' ) or addr.startswith( 'http://' ) or
-               addr.startswith( 'https://' ) ):
-         addr = '//' + addr
-      addr = addr.replace( "apiserver", "www" )
-      addrURL = urlparse( addr )
-      if addrURL.netloc == "":
-         addrURL = addrURL._replace( path="", netloc=addrURL.path )
-      if addrURL.path == "":
-         addrURL = addrURL._replace( path="/ztp/bootstrap" )
-      if addrURL.scheme == "":
-         addrURL = addrURL._replace( scheme="https" )
-      return addrURL
-
 
 class OnPremBootstrapManager( BootstrapManager ):
    def __init__( self ):
@@ -424,23 +426,12 @@ class OnPremBootstrapManager( BootstrapManager ):
       self.tokenType = INGEST_TOKEN
       self.enrollAddr = self.bootstrapURL.netloc
 
-   def getBootstrapURL( self, addr ):
-      # urlparse in py3 parses correctly only if the url is properly introduced by //
-      if not ( addr.startswith( '//' ) or addr.startswith( 'http://' ) or
-               addr.startswith( 'https://' ) ):
-         addr = '//' + addr
-      addrURL = urlparse( addr )
-      if addrURL.netloc == "":
-         addrURL = addrURL._replace( path="", netloc=addrURL.path )
-      if addrURL.path == "":
-         addrURL = addrURL._replace( path="/ztp/bootstrap" )
-      if addrURL.scheme == "":
-         addrURL = addrURL._replace( scheme="http" )
-      return addrURL
-
-
 if __name__ == "__main__":
    setupLogger()
+
+   #logging the current version of the custom bootstrap script
+   log( "Current Custom Bootstrap Script Version :%s" % VERSION )
+
    if cvAddr == "":
       err = "error: address to CVP missing"
       log(err)
