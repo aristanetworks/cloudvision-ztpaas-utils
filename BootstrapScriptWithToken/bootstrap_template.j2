@@ -93,7 +93,7 @@ def getExpiryFromToken(token):
       # jwt token has 3 parts (header, payload, sign) seperated by a '.'
       # payload has 'exp' field which contains the token expiry time in epoch
       token_payload = token.split(".")[1]
-      token_payload_decoded = str(base64.b64decode(token_payload + "=="), "utf-8")
+      token_payload_decoded = str(base64.b64decode(token_payload + "==").decode("utf-8"))
       payload = json.loads(token_payload_decoded)
       return payload["exp"], True
    except:
