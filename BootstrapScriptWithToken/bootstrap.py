@@ -3,6 +3,8 @@
 # Use of this source code is governed by the Apache License 2.0
 # that can be found in the COPYING file.
 
+import base64
+import datetime
 import json
 import logging
 import logging.handlers
@@ -11,8 +13,6 @@ import signal
 import subprocess
 import sys
 import time
-import datetime
-import base64
 
 ##############  USER INPUT  ##############
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
@@ -93,7 +93,7 @@ def getExpiryFromToken(token):
       # jwt token has 3 parts (header, payload, sign) seperated by a '.'
       # payload has 'exp' field which contains the token expiry time in epoch
       token_payload = token.split(".")[1]
-      token_payload_decoded = str(base64.b64decode(token_payload + "==").decode("utf-8"))
+      token_payload_decoded = str(base64.b64decode(token_payload + "=="), "utf-8")
       payload = json.loads(token_payload_decoded)
       return payload["exp"], True
    except:
@@ -206,9 +206,9 @@ def tryImageUpgrade( e ):
 # script with python3. In case we cannot recover, the script will require "eosUrl" to
 # perform an upgrade before it can proceed.
 try:
-   from SysdbHelperUtils import SysdbPathHelper
-   import requests
    import Cell
+   import requests
+   from SysdbHelperUtils import SysdbPathHelper
 except ImportError as e:
    if sys.version_info < (3,) and os.path.exists( '/usr/bin/python3' ):
       os.execl( '/usr/bin/python3', 'python3', os.path.abspath(__file__ ) )
