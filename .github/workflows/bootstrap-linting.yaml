@@ -1,8 +1,8 @@
-name: "Pull Request Triage"
-run-name: ${{ github.actor }} python compatibility check
+name: "Bootstrap Script Linting Check"
+run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }}
 
-# Runs python compatibility and linting checks on the code that has
-# been changed, or on the pull requests that have been created.
+# Runs python linting checks on the code that has been changed,
+# or on the pull requests that have been created.
 # PRs cannot be merged into unless the validate checks all pass.
 
 on: [push, pull_request]
@@ -10,9 +10,10 @@ on: [push, pull_request]
 env:
   PYLINT_VERSION_PY2: 1.9.5
   PYLINT_VERSION_PY3: 3.1.0   # Latest as of May 2024
+  BOOTSTRAP_FILE: "BootstrapScriptWithToken/bootstrap.py"
 
 jobs:
-  validate-with-python2:
+  lint-with-python2:
     runs-on: ubuntu-20.04
 
     container:
@@ -32,9 +33,9 @@ jobs:
           pylint --version
 
       - name: Check Errors in Python Files
-        run: pylint --errors-only $(git ls-files '*.py')
+        run: pylint --errors-only $BOOTSTRAP_FILE
 
-  validate-with-python3:
+  lint-with-python3:
     runs-on: ubuntu-latest
 
     steps:
@@ -55,4 +56,4 @@ jobs:
           pylint --version
 
       - name: Check Errors in Python Files
-        run: pylint --errors-only $(git ls-files '*.py')
+        run: pylint --errors-only $BOOTSTRAP_FILE
