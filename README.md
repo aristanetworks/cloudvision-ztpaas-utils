@@ -1,5 +1,7 @@
 # CloudVision ZTPaaS Utils
 
+![Pull Request Triage][PULL_REQUEST_TRIAGE]
+
 ## Introduction
 
 Arista’s Zero Touch Provisioning is used to configure a switch without user intervention. Built to leverage Arista’s Extensible Operating System (EOS), ZTP as-a-Service provides a flexible solution to onboard EOS devices into CloudVision as-a-Service.
@@ -29,3 +31,5 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
 This usually indicates a problem executing the config script. In most cases this happens when the script is edited on a Microsoft Windows machine due
 to which each line is ending in `Windows(CR LF)` instead of `Unix(LF)`. There are multiple ways to replace `CR LF` with `LF`, one way is to use Notepad++,
 click on Edit - EOL Conversion and select `Unix(LF)` and save the file. This is also described in [A Practical Guide to Zero Touch Provisioning (ZTP) in CloudVision as a Service (CVaaS)](https://arista.my.site.com/AristaCommunity/s/article/A-Practical-Guide-to-Zero-Touch-Provisioning-ZTP-in-Cloud-Vision-as-a-Service-CVaaS) Community central article.
+
+[PULL_REQUEST_TRIAGE]: https://github.com/aristanetworks/cloudvision-ztpaas-utils/actions/workflows/python-compatibility.yaml/badge.svg
