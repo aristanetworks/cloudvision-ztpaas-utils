@@ -1,0 +1,45 @@
+name: "Python Tests"
+run-name: Deploy to ${{ github.ref_name }} by @${{ github.actor }}
+
+# Runs python tests
+# PRs cannot be merged into unless all the tests pass.
+
+on: [push, pull_request]
+
+env:
+  PYLINT_VERSION_PY3: 3.1.0   # Latest as of May 2024
+  TEST_DIR: "tests"
+
+jobs:
+  run-python-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Display the Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Install Pylint
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint==$PYLINT_VERSION_PY3
+          pylint --version
+
+      - name: Install Python Test Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r $TEST_DIR/requirements.txt
+
+      - name: Check Errors in Python Test Files
+        run: pylint --errors-only $TEST_DIR
+
+      - name: Test with Pytest
+        run: |
+          pip install pytest
+          pytest -v -x -rP -s $TEST_DIR
