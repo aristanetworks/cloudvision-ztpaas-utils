@@ -3,16 +3,17 @@
 # Use of this source code is governed by the Apache License 2.0
 # that can be found in the COPYING file.
 
+import base64
+import datetime
 import json
 import logging
 import logging.handlers
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
-import datetime
-import base64
 
 ##############  USER INPUT  ##############
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
@@ -206,9 +207,9 @@ def tryImageUpgrade( e ):
 # script with python3. In case we cannot recover, the script will require "eosUrl" to
 # perform an upgrade before it can proceed.
 try:
-   from SysdbHelperUtils import SysdbPathHelper
-   import requests
    import Cell
+   import requests
+   from SysdbHelperUtils import SysdbPathHelper
 except ImportError as e:
    if sys.version_info < (3,) and os.path.exists( '/usr/bin/python3' ):
       os.execl( '/usr/bin/python3', 'python3', os.path.abspath(__file__ ) )
@@ -216,14 +217,19 @@ except ImportError as e:
       log("Python3 not found. Attempting EOS version upgrade")
       tryImageUpgrade( e )
 
-if sys.version_info >= (3,):
+try:
+   # This import will fail for EOS < 4.30.1, where #!/usr/bin/python
+   # will run this in a python 2 environment
    from urllib.parse import urlparse
-else:
+except ImportError:
    from urlparse import urlparse
 
 class BootstrapManager( object ):
    def __init__( self ):
       super( BootstrapManager, self ).__init__()
+      self.redirectorURL = None
+      self.tokenType = None
+      self.enrollAddr = None
 
    def getBootstrapURL( self, addr ):
       # urlparse in py3 parses correctly only if the url is properly introduced by //
