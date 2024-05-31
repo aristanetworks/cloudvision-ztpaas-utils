@@ -333,6 +333,7 @@ class BootstrapManager( object ):
          self.bootstrapURL = self.getBootstrapURL( assignment )
       except Exception as e:
          log("No assignment found. Error talking to redirector - %s" % e )
+         raise e
 
    def getBootstrapScript( self ):
       # setting Sysdb access variables
@@ -361,7 +362,10 @@ class BootstrapManager( object ):
       headers[ 'X-Arista-CustomBootScriptVersion' ] = VERSION
 
       # get the URL to the right cluster
-      self.checkWithRedirector( mibStatus.root.serialNum )
+      try:
+         self.checkWithRedirector( mibStatus.root.serialNum )
+      except Exception as e:
+         raise e
 
       # making the request and writing to file
       response = requests.get( self.bootstrapURL.geturl(), headers=headers,
