@@ -28,8 +28,11 @@ enrollmentToken = ""
 # Add proxy url if device is behind proxy server, leave it as an empty string otherwise
 cvproxy = ""
 
-# eosUrl is an optional parameter, which needs to be added only if the EOS version
-# is <4.24, in which case, SysDbHelperUtils is not present on the device.
+# eosUrl is an optional parameter, which needs to be added if
+# - The EOS version is <4.24.1F
+#    - For versions <4.23.10M, SysDbHelperUtils is not present on the device.
+#    - For versions <4.24.1F, -enrollOnly flag is not present on the TA version.
+# - `cvproxy` parameter value is provided and TA version is <1.19
 # This needs to be a http URL pointing to a SWI image on the local network.
 eosUrl = ""
 
