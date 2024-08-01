@@ -25,6 +25,24 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
 
 - Boot up the EOS device into ZTP mode. It should download the script and enroll with the desired CVaaS cluster against the correct tenant.
 
+> Please note that the correct regional URL where the CVaaS tenant is deployed must be used for EOS versions older than 4.30. The following are the
+cluster URLs used in production:
+
+| Region | URL |
+|--------|-----|
+| United States 1a | `www.arista.io` |
+| United States 1b | `www.cv-prod-us-central1-b.arista.io`|
+| United States 1c | `www.cv-prod-us-central1-c.arista.io`|
+| Canada | `www.cv-prod-na-northeast1-b.arista.io` |
+| Europe West 2| `www.cv-prod-euwest-2.arista.io` |
+| Japan| `www.cv-prod-apnortheast-1.arista.io` |
+| Australia | `www.cv-prod-ausoutheast-1.arista.io` |
+| United Kingdon | `www.cv-prod-uk-1.arista.io` |
+
+!!! Warning
+
+    URLs without `www` are not supported.
+
 ## Troubleshooting tips
 
 ### ZTP-4-EXEC_SCRIPT_SIGNALED: Config script exited with an uncaught signal. Signal code: 1

@@ -19,7 +19,17 @@ import time
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
 
-# address for CVaaS, usually just "www.arista.io"
+# Addresses for CVaaS
+# Note: The correct regional URL where the CVaaS tenant is deployed must be used for EOS versions
+# older than 4.30. The following are the cluster URLs used in production:
+# United States 1a: "www.arista.io"
+# United States 1b: "www.cv-prod-us-central1-b.arista.io"
+# United States 1c: "www.cv-prod-us-central1-c.arista.io"
+# Canada: "www.cv-prod-na-northeast1-b.arista.io"
+# Europe West 2: "www.cv-prod-euwest-2.arista.io"
+# Japan: "www.cv-prod-apnortheast-1.arista.io"
+# Australia: "www.cv-prod-ausoutheast-1.arista.io"
+# United Kingdon: "www.cv-prod-uk-1.arista.io"
 cvAddr = ""
 
 # enrollment token to be copied from CVaaS Device Registration page
