@@ -345,7 +345,6 @@ class BootstrapManager( object ):
       # sysdb paths accessed
       cellID = str( Cell.cellId() )
       mibStatus = pathHelper.getEntity( "hardware/entmib" )
-      tpmStatus = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/status" )
 
       # setting header information
       headers = {}
@@ -354,9 +353,13 @@ class BootstrapManager( object ):
       headers[ 'X-Arista-HardwareVersion' ] = mibStatus.root.hardwareRev
       headers[ 'X-Arista-Serial' ] = mibStatus.root.serialNum
 
-      headers[ 'X-Arista-TpmApi' ] = tpmStatus.tpmVersion
-      headers[ 'X-Arista-TpmFwVersion' ] = tpmStatus.firmwareVersion
-      headers[ 'X-Arista-SecureZtp' ] = str( tpmStatus.boardValidated )
+      try:
+         tpmStatus = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/status" )
+         headers[ 'X-Arista-TpmApi' ] = tpmStatus.tpmVersion
+         headers[ 'X-Arista-TpmFwVersion' ] = tpmStatus.firmwareVersion
+         headers[ 'X-Arista-SecureZtp' ] = str( tpmStatus.boardValidated )
+      except Exception as e:
+         log("Exception while getting device tpmStatus: %s" % e)
 
       headers[ 'X-Arista-SoftwareVersion' ] = getValueFromFile(
             "/etc/swi-version", "SWI_VERSION" )
