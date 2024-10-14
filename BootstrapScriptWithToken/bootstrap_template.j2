@@ -20,8 +20,9 @@ import time
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
 
 # Addresses for CVaaS
-# Note: The correct regional URL where the CVaaS tenant is deployed must be used for EOS versions
-# older than 4.30. The following are the cluster URLs used in production:
+# Note: If the EOS version is newer than 4.30, the URL "www.arista.io" can be used. Otherwise if
+# the EOS version is older than 4.30, the correct regional URL where the CVaaS tenant is deployed
+# must be used. The following are the cluster URLs used in production:
 # United States 1a: "www.arista.io"
 # United States 1b: "www.cv-prod-us-central1-b.arista.io"
 # United States 1c: "www.cv-prod-us-central1-c.arista.io"
@@ -346,6 +347,7 @@ class BootstrapManager( object ):
          self.bootstrapURL = self.getBootstrapURL( assignment )
       except Exception as e:
          log("No assignment found. Error talking to redirector - %s" % e )
+         raise e
 
    def getBootstrapScript( self ):
       # setting Sysdb access variables
