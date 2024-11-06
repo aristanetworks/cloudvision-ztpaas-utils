@@ -41,8 +41,9 @@ cvproxy = ""
 
 # eosUrl is an optional parameter, which needs to be added if
 # - The EOS version is <4.24.1F
-#    - For versions <4.23.10M, SysDbHelperUtils is not present on the device.
-#    - For versions <4.24.1F, -enrollOnly flag is not present on the TA version.
+#    - For versions <4.23.2F, SysDbHelperUtils is not present on the device
+#    - For versions <4.24.1F, -enrollOnly flag is not present on the TA version
+#      i.e. TA versions < 1.9.0
 # - `cvproxy` parameter value is provided and TA version is <1.19
 # This needs to be a http URL pointing to a SWI image on the local network.
 eosUrl = ""
