@@ -196,21 +196,18 @@ def getValueFromFile( filename, key ):
 
 def tryImageUpgrade( e ):
    # Raise import error if eosUrl is empty
+   cli = CliManager()
    if eosUrl == "":
       log("Specify eosUrl for EOS version upgrade")
       raise( e )
-   subprocess.call( [ "mv", "/mnt/flash/EOS.swi", "/mnt/flash/EOS.swi.bak" ] )
-   try:
-      cmd = "wget {} -O /mnt/flash/EOS.swi; sudo ip netns exec default /usr/bin/FastCli \
-         -p15 -G -A -c $'configure\nboot system flash:/EOS.swi'".format(eosUrl)
-      subprocess.check_output( cmd, shell=True, stderr=subprocess.STDOUT )
-   except subprocess.CalledProcessError as err:
-      # If the link to eosUrl specified is incorrect, then revert back to the older version
-      subprocess.call( [ "mv", "/mnt/flash/EOS.swi.bak", "/mnt/flash/EOS.swi" ] )
-      log("Failed to download swi from %s, err - %s" % (eosUrl, err.output))
-      log("Falling back to original version")
-      raise( err )
-   subprocess.call( [ "rm", "/mnt/flash/EOS.swi.bak" ] )
+
+   cmdList = ["enable", "install source {eosUrl} destination flash:/EOS.swi".format(eosUrl=eosUrl)]
+   rc, cmdOut = cli.runCommands(cmdList)
+   if rc != 0:
+      log("Failed to upgrade EOS from {eosUrl}, err: {err}. Aborting.".format(
+         eosUrl=eosUrl, err=cmdOut))
+      raise Exception("Failed to upgrade EOS from {eosUrl}, err: {err}. Aborting.".format(
+         eosUrl=eosUrl, err=cmdOut))
    subprocess.call( [ "reboot" ] )
 
 
