@@ -19,10 +19,10 @@ import time
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
 
-# Addresses for CVaaS
-# Note: If the EOS version is newer than 4.30, the URL "www.arista.io" can be used. Otherwise if
-# the EOS version is older than 4.30, the correct regional URL where the CVaaS tenant is deployed
-# must be used. The following are the cluster URLs used in production:
+# Address for CVaaS: "www.arista.io"
+# Note: The URL "www.arista.io" can be used for all clusters and the script will redirect
+# to the correct cluster URL. Otherwise if preferred, the correct regional URL where the
+# CVaaS tenant is deployed can be used. The following are the cluster URLs used in production:
 # United States 1a: "www.arista.io"
 # United States 1b: "www.cv-prod-us-central1-b.arista.io"
 # United States 1c: "www.cv-prod-us-central1-c.arista.io"
@@ -242,6 +242,14 @@ class BootstrapManager( object ):
       self.redirectorURL = None
       self.tokenType = None
       self.enrollAddr = None
+      # setting Sysdb access variables
+      sysname = os.environ.get( "SYSNAME", "ar" )
+      self.pathHelper = SysdbPathHelper( sysname )
+
+      # sysdb paths accessed
+      self.cellID = str( Cell.cellId() )
+      self.mibStatus = self.pathHelper.getEntity( "hardware/entmib" )
+
 
    def getBootstrapURL( self, addr ):
       # urlparse in py3 parses correctly only if the url is properly introduced by //
@@ -262,6 +270,31 @@ class BootstrapManager( object ):
             addrURL = addrURL._replace( scheme="http" )
       return addrURL
 
+##################################################################################
+# step 0: redirect to the correct cluster url
+##################################################################################
+   def checkWithRedirector( self ):
+      if not self.redirectorURL:
+         return
+
+      try:
+         payload = '{"key": {"system_id": "%s"}}' % self.mibStatus.root.serialNum
+         headers = { "redirector_token" : enrollmentToken }
+         response = requests.post( self.redirectorURL.geturl(), data=payload,
+               headers=headers, proxies=proxies )
+         response.raise_for_status()
+
+      except Exception as e:
+         log("No assignment found. Error talking to redirector - %s" % e )
+         raise e
+
+      clusters = response.json()[ 0 ][ "value" ][ "clusters" ][ "values" ]
+      assignment = clusters [ 0 ][ "hosts" ][ "values" ][ 0 ]
+      self.bootstrapURL = self.getBootstrapURL( assignment )
+      self.enrollAddr = self.bootstrapURL.netloc
+      if not self.enrollAddr.endswith(SECURE_HTTPS_PORT):
+         self.enrollAddr += ":" + SECURE_HTTPS_PORT
+      self.enrollAddr = self.enrollAddr.replace( "www", "apiserver" )
 
 ##################################################################################
 # step 1: get client certificate using the enrollment token
@@ -331,40 +364,16 @@ class BootstrapManager( object ):
 ##################################################################################
 # step 3 get bootstrap script using the certificates
 ##################################################################################
-   def checkWithRedirector( self, serialNum ):
-      if not self.redirectorURL:
-         return
-
-      try:
-         payload = '{"key": {"system_id": "%s"}}' % serialNum
-         response = requests.post( self.redirectorURL.geturl(), data=payload,
-               cert=( self.certificate, self.key ), proxies=proxies )
-         response.raise_for_status()
-         clusters = response.json()[ 0 ][ "value" ][ "clusters" ][ "values" ]
-         assignment = clusters [ 0 ][ "hosts" ][ "values" ][ 0 ]
-         self.bootstrapURL = self.getBootstrapURL( assignment )
-      except Exception as e:
-         log("No assignment found. Error talking to redirector - %s" % e )
-         raise e
-
    def getBootstrapScript( self ):
-      # setting Sysdb access variables
-      sysname = os.environ.get( "SYSNAME", "ar" )
-      pathHelper = SysdbPathHelper( sysname )
-
-      # sysdb paths accessed
-      cellID = str( Cell.cellId() )
-      mibStatus = pathHelper.getEntity( "hardware/entmib" )
-
       # setting header information
       headers = {}
-      headers[ 'X-Arista-SystemMAC' ] = mibStatus.systemMacAddr
-      headers[ 'X-Arista-ModelName' ] = mibStatus.root.modelName
-      headers[ 'X-Arista-HardwareVersion' ] = mibStatus.root.hardwareRev
-      headers[ 'X-Arista-Serial' ] = mibStatus.root.serialNum
+      headers[ 'X-Arista-SystemMAC' ] = self.mibStatus.systemMacAddr
+      headers[ 'X-Arista-ModelName' ] = self.mibStatus.root.modelName
+      headers[ 'X-Arista-HardwareVersion' ] = self.mibStatus.root.hardwareRev
+      headers[ 'X-Arista-Serial' ] = self.mibStatus.root.serialNum
 
       try:
-         tpmStatus = pathHelper.getEntity( "cell/" + cellID + "/hardware/tpm/status" )
+         tpmStatus = self.pathHelper.getEntity( "cell/" + self.cellID + "/hardware/tpm/status" )
          headers[ 'X-Arista-TpmApi' ] = tpmStatus.tpmVersion
          headers[ 'X-Arista-TpmFwVersion' ] = tpmStatus.firmwareVersion
          headers[ 'X-Arista-SecureZtp' ] = str( tpmStatus.boardValidated )
@@ -375,9 +384,6 @@ class BootstrapManager( object ):
             "/etc/swi-version", "SWI_VERSION" )
       headers[ 'X-Arista-Architecture' ] = getValueFromFile( "/etc/arch", "" )
       headers[ 'X-Arista-CustomBootScriptVersion' ] = VERSION
-
-      # get the URL to the right cluster
-      self.checkWithRedirector( mibStatus.root.serialNum )
 
       # making the request and writing to file
       response = requests.get( self.bootstrapURL.geturl(), headers=headers,
@@ -422,6 +428,7 @@ class BootstrapManager( object ):
       log("step 3.2.2 done, executed the fetched bootstrap script")
 
    def run( self ):
+      self.checkWithRedirector()
       self.getClientCertificates()
       self.getCertificatePaths()
       self.getBootstrapScript()
@@ -435,8 +442,7 @@ class CloudBootstrapManager( BootstrapManager ):
       self.bootstrapURL = self.getBootstrapURL( cvAddr )
       self.redirectorURL = self.bootstrapURL._replace( path=REDIRECTOR_PATH )
       self.tokenType = SECURE_TOKEN
-      self.enrollAddr = self.bootstrapURL.netloc + ":" + SECURE_HTTPS_PORT
-      self.enrollAddr = self.enrollAddr.replace( "www", "apiserver" )
+      self.enrollAddr = None
 
 
 class OnPremBootstrapManager( BootstrapManager ):
