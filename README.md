@@ -18,15 +18,14 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
 - Download the custom bootstrap script and modify the "USER INPUT" section to specify the cluster URL and the enrollment token:
 
         ########### USER INPUT ############
-        cvAddr = "www.cv-mycluster.arista.io"
+        cvAddr = "www.arista.io"
         enrollmentToken = "eyJhbGciOiJSUzI1Nixxx..."
 
 - Host the script on a server locally, and modify the DHCP server to point to this script via option-67/bootfile-name option
 
 - Boot up the EOS device into ZTP mode. It should download the script and enroll with the desired CVaaS cluster against the correct tenant.
 
-> Please note that the correct regional URL where the CVaaS tenant is deployed must be used for EOS versions older than 4.30. The following are the
-cluster URLs used in production:
+- For the cluster URL (cvAddr), please use "www.arista.io". The URL "www.arista.io" can be used for all clusters and the script will redirect to the correct cluster URL. Otherwise if any issues occur, the specific regional URL where the CVaaS tenant is deployed can be used. The following are the cluster URLs used in production:
 
 | Region | URL |
 |--------|-----|
