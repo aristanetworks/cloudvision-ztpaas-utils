@@ -64,7 +64,7 @@ INGEST_TOKEN = "token"
 TOKEN_FILE_PATH = "/tmp/token.tok"
 BOOT_SCRIPT_PATH = "/tmp/bootstrap-script"
 REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne"
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 
 ##############  HELPER FUNCTIONS  ##############
 proxies = { "https" : cvproxy, "http" : cvproxy }
