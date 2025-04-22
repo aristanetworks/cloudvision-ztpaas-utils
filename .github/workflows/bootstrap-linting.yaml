@@ -9,32 +9,10 @@ on: [push, pull_request]
 
 env:
   PYLINT_VERSION_PY2: 1.9.5
-  PYLINT_VERSION_PY3: 3.1.0   # Latest as of May 2024
+  PYLINT_VERSION_PY3: 3.3.6   # Latest as of Apr 2025
   BOOTSTRAP_FILE: "BootstrapScriptWithToken/bootstrap.py"
 
 jobs:
-  lint-with-python2:
-    runs-on: ubuntu-20.04
-
-    container:
-      # As Python 2 is EOL and deprecated, we need to use its official docker image
-      # and run the job steps in that container based on this image
-      image: python:2.7.18-buster
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Display the Python version
-        run: python -c "import sys; print sys.version"
-
-      - name: Install Pylint
-        run: |  # Don't upgrade pip here
-          pip install pylint==$PYLINT_VERSION_PY2
-          pylint --version
-
-      - name: Check Errors in Python Files
-        run: pylint --errors-only $BOOTSTRAP_FILE
-
   lint-with-python3:
     runs-on: ubuntu-latest
 
@@ -44,15 +22,82 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Display the Python version
-        run: python -c "import sys; print(sys.version)"
+        run: |
+          python --version
 
       - name: Install Pylint
         run: |
           python -m pip install --upgrade pip
           pip install pylint==$PYLINT_VERSION_PY3
+          pylint --version
+
+      - name: Check Errors in Python Files
+        run: pylint --errors-only $BOOTSTRAP_FILE
+
+  lint-with-python2:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pyenv and Python 2.7
+        shell: bash
+        run: |
+          curl https://pyenv.run | bash
+          export PATH="$HOME/.pyenv/bin:$PATH"
+          pyenv install 2.7.18
+
+      - name: Setup Python2 Environment
+        run: |
+          echo "Current system Python Version:"
+          python --version
+
+          echo "Setting paths"
+          export PATH="$HOME/.pyenv/bin:$PATH"
+
+          # Update alternatives
+          sudo update-alternatives --install /usr/bin/python python $(pyenv root)/shims/python 1
+          pyenv global 2.7.18
+
+          venv_base_path="/tmp/python27/venv"
+          venv_dir="bin"
+
+          echo "New Python version:"
+          python --version
+
+          echo "Bootstrapping pip"
+          curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+          python get-pip.py
+          rm -f get-pip.py
+
+          echo "Installing virtualenv"
+          python -m pip install virtualenv
+
+          # Create venv
+          python -m virtualenv ${venv_base_path}
+
+          # Activate venv
+          source ${venv_base_path}/${venv_dir}/activate
+
+          # Update
+          python -m pip --no-python-version-warning --disable-pip-version-check install --upgrade pip setuptools
+
+          echo "Pip version:"
+          python -m pip --no-python-version-warning --disable-pip-version-check --version
+
+          # Update the path environment, so the next steps can use the venv
+          # required to use the shell
+          echo "${venv_base_path}/${venv_dir}" >> $GITHUB_PATH
+
+          echo "Python venv version:"
+          python --version
+
+      - name: Install Pylint
+        run: |  # Don't upgrade pip here
+          python -m pip --no-python-version-warning --disable-pip-version-check install pylint==$PYLINT_VERSION_PY2
           pylint --version
 
       - name: Check Errors in Python Files
