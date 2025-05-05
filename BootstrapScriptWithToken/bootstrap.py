@@ -201,14 +201,22 @@ def tryImageUpgrade( e ):
       log("Specify eosUrl for EOS version upgrade")
       raise( e )
 
+   # Install new image
    cmdList = ["enable", "install source {eosUrl} destination flash:/EOS.swi".format(eosUrl=eosUrl)]
    rc, cmdOut = cli.runCommands(cmdList)
-   if rc != 0:
+   if rc:
       log("Failed to upgrade EOS from {eosUrl}, err: {err}. Aborting.".format(
          eosUrl=eosUrl, err=cmdOut))
       raise Exception("Failed to upgrade EOS from {eosUrl}, err: {err}. Aborting.".format(
          eosUrl=eosUrl, err=cmdOut))
-   subprocess.call( [ "reboot" ] )
+
+   # Reboot device
+   cmdList = ["enable", "reload all now"]
+   rc, cmdOut = cli.runCommands(cmdList)
+   if rc:
+      log("Failed to reboot after image upgrade, err: {err}. Aborting.".format(err=cmdOut))
+      raise Exception("Failed to reboot after image upgrade, err: {err}. Aborting.".format(
+         err=cmdOut))
 
 
 ###################  MAIN SCRIPT  ###################
