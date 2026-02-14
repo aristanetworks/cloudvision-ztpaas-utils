@@ -19,19 +19,19 @@ import time
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
 
-# Address for CVaaS: "www.arista.io"
-# Note: The URL "www.arista.io" can be used for all clusters and the script will redirect
+# Address for CVaaS: "apiserver.arista.io"
+# Note: The URL "apiserver.arista.io" can be used for all clusters and the script will redirect
 # to the correct cluster URL. Otherwise if preferred, the correct regional URL where the
 # CVaaS tenant is deployed can be used. The following are the cluster URLs used in production:
-# United States 1a: "www.arista.io"
-# United States 1b: "www.cv-prod-us-central1-b.arista.io"
-# United States 1c: "www.cv-prod-us-central1-c.arista.io"
-# Canada: "www.cv-prod-na-northeast1-b.arista.io"
-# Europe West 2: "www.cv-prod-euwest-2.arista.io"
-# Japan: "www.cv-prod-apnortheast-1.arista.io"
-# Australia: "www.cv-prod-ausoutheast-1.arista.io"
-# United Kingdon: "www.cv-prod-uk-1.arista.io"
-# India: "www.cv-prod-india-1.arista.io"
+# United States 1a: "apiserver.arista.io"
+# United States 1b: "apiserver.cv-prod-us-central1-b.arista.io"
+# United States 1c: "apiserver.cv-prod-us-central1-c.arista.io"
+# Canada: "apiserver.cv-prod-na-northeast1-b.arista.io"
+# Europe West 2: "apiserver.cv-prod-euwest-2.arista.io"
+# Japan: "apiserver.cv-prod-apnortheast-1.arista.io"
+# Australia: "apiserver.cv-prod-ausoutheast-1.arista.io"
+# United Kingdon: "apiserver.cv-prod-uk-1.arista.io"
+# India: "apiserver.cv-prod-india-1.arista.io"
 cvAddr = ""
 
 # enrollment token to be copied from CVaaS Device Registration page
