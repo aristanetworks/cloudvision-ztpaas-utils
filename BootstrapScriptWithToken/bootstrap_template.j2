@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+JSONDecodeError = getattr(json, "JSONDecodeError", ValueError)
+
 ##############  USER INPUT  ##############
 # Note: If you are saving the file on windows, please make sure to use linux (LF) as newline.
 # By default, windows uses (CR LF), you need to convert the newline char to linux (LF).
@@ -97,7 +99,10 @@ def monitorNtpSync():
       log("Polling NTP status.")
       try:
          ntpStatInfo = subprocess.call(["ntpstat"])
-      except Exception as e:
+         if ntpStatInfo != 0:
+            log("ntpstat returned {rc}, retrying with ntpsecq.".format(rc=ntpStatInfo))
+            ntpStatInfo = subprocess.call(["ntpstat", "ntpsecq"])
+      except OSError as e:
          raise Exception("ntpstat command failed, err: {err}. Aborting".format(err=e))
       log("NTP sync status - {ntpStatInfo}".format(ntpStatInfo=str(ntpStatInfo)))
       if ntpStatInfo == 0:
@@ -156,6 +161,10 @@ class CliManager(object):
          err = e.output
          log("Error running commands: [{cmdStr}], err: {err}".format(cmdStr=cmdStr, err=err))
          return (rc, err)
+      except OSError as e:
+         err = str(e)
+         log("Error running commands: [{cmdStr}], err: {err}".format(cmdStr=cmdStr, err=err))
+         return (1, err)
 
       if cmdOutput:
          for line in cmdOutput.split("\n"):
@@ -202,16 +211,21 @@ def getKeyValueFromFile(filename, key):
    and returns the found value without any whitespaces. In case no/empty key specified,
    gives the first string in the first line of the file.
    """
-   if not key:
-      with open(filename, "r") as f:
-         return f.readline().split()[0]
-   else:
-      with open(filename, "r") as f:
-         lines = f.readlines()
-         for line in lines:
-            if key in line :
-               return line.split("=")[1].rstrip("\n")
-   return None
+   try:
+      if not key:
+         with open(filename, "r") as f:
+            return f.readline().split()[0]
+      else:
+         with open(filename, "r") as f:
+            lines = f.readlines()
+            for line in lines:
+               if key in line :
+                  return line.split("=")[1].rstrip("\n")
+      return None
+   except (IOError, OSError, IndexError) as e:
+      err = "Failed to read {filename}, err: {err}".format(filename=filename, err=e)
+      log(err)
+      raise Exception(err)
 
 
 def tryImageUpgrade(e):
@@ -284,13 +298,18 @@ class BootstrapManager(object):
       self.certificate = ""
       self.key = ""
 
-      # setting Sysdb access variables
-      sysname = os.environ.get("SYSNAME", "ar")
-      self.pathHelper = SysdbPathHelper(sysname)
+      try:
+         # setting Sysdb access variables
+         sysname = os.environ.get("SYSNAME", "ar")
+         self.pathHelper = SysdbPathHelper(sysname)
 
-      # sysdb paths accessed
-      self.cellID = str(Cell.cellId())
-      self.mibStatus = self.pathHelper.getEntity("hardware/entmib")
+         # sysdb paths accessed
+         self.cellID = str(Cell.cellId())
+         self.mibStatus = self.pathHelper.getEntity("hardware/entmib")
+      except Exception as e:
+         err = "Failed to get device information from SysDB, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
 
    def getBootstrapURL(self, addr):
       # urlparse in py3 parses correctly only if the url is properly introduced by //
@@ -327,13 +346,18 @@ class BootstrapManager(object):
          response = requests.post(self.redirectorURL.geturl(), data=payload,
                                     headers=headers, proxies=proxies)
          response.raise_for_status()
-      except Exception as e:
+      except requests.exceptions.RequestException as e:
          err = "No assignment found. Error talking to redirector: {err}".format(err=e)
          log(err)
          raise Exception(err)
 
-      clusters = response.json()[0]["value"]["clusters"]["values"]
-      assignment = clusters[0]["hosts"]["values"][0]
+      try:
+         clusters = response.json()[0]["value"]["clusters"]["values"]
+         assignment = clusters[0]["hosts"]["values"][0]
+      except (JSONDecodeError, KeyError, IndexError, TypeError) as e:
+         err = "No assignment found. Invalid redirector response: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
       self.bootstrapURL = self.getBootstrapURL(assignment)
       self.enrollAddr = self.bootstrapURL.netloc
       if not self.enrollAddr.endswith(SECURE_HTTPS_PORT):
@@ -347,8 +371,14 @@ class BootstrapManager(object):
    # Step 1: Get client certificate using the enrollment token
    ##################################################################################
    def getClientCertificates( self ):
-      with open(TOKEN_FILE_PATH, "w") as f:
-         f.write(enrollmentToken)
+      try:
+         with open(TOKEN_FILE_PATH, "w") as f:
+            f.write(enrollmentToken)
+      except (IOError, OSError) as e:
+         err = "Failed to write enrollment token to {path}, err: {err}".format(
+            path=TOKEN_FILE_PATH, err=e)
+         log(err)
+         raise Exception(err)
 
       # A timeout of 60 seconds is used with TerminAttr commands since in most
       # versions of TerminAttr, the command execution does not finish if a wrong
@@ -376,7 +406,11 @@ class BootstrapManager(object):
             tryImageUpgrade(e)
          else:
             log("Failed to retrieve certs, err: {err}".format(err=e.output))
-            raise e
+            raise
+      except OSError as e:
+         err = "Failed to run TerminAttr enrollment, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
 
       log("Step 1 done, exchanged enrollment token for client certificates")
 
@@ -402,6 +436,14 @@ class BootstrapManager(object):
          basePath = "/persist/secure/ssl/terminattr/primary"
          self.certificate = "{basePath}/certs/client.crt".format(basePath=basePath)
          self.key = "{basePath}/keys/client.key".format(basePath=basePath)
+      except OSError as e:
+         err = "Failed to run TerminAttr certsconfig, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
+      except (JSONDecodeError, KeyError, TypeError) as e:
+         err = "Failed to parse TerminAttr certsconfig response, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
 
       log("Step 2 done, obtained client certs location")
       log("certificate location - {certificate}".format(certificate=self.certificate))
@@ -433,11 +475,23 @@ class BootstrapManager(object):
       headers["X-Arista-CustomBootScriptVersion"] = VERSION
 
       # Making the request and writing to file
-      response = requests.get(self.bootstrapURL.geturl(), headers=headers,
-                              cert=(self.certificate, self.key), proxies=proxies)
-      response.raise_for_status()
-      with open(BOOT_SCRIPT_PATH, "w") as f:
-         f.write(response.text)
+      try:
+         response = requests.get(self.bootstrapURL.geturl(), headers=headers,
+                                 cert=(self.certificate, self.key), proxies=proxies)
+         response.raise_for_status()
+      except requests.exceptions.RequestException as e:
+         err = "Failed to fetch bootstrap script, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
+
+      try:
+         with open(BOOT_SCRIPT_PATH, "w") as f:
+            f.write(response.text)
+      except (IOError, OSError) as e:
+         err = "Failed to store bootstrap script at {path}, err: {err}".format(
+            path=BOOT_SCRIPT_PATH, err=e)
+         log(err)
+         raise Exception(err)
 
       log("Step 3.1 done, bootstrap script fetched and stored at {bootScriptPath}".format(
          bootScriptPath=BOOT_SCRIPT_PATH))
@@ -460,7 +514,11 @@ class BootstrapManager(object):
          subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
       except subprocess.CalledProcessError as e:
          log(e.output)
-         raise e
+         raise
+      except OSError as e:
+         err = "Failed to set execution permissions for bootstrap script, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
       log("Step 3.2.1 done, execution permissions for bootstrap script setup")
 
       cmd = BOOT_SCRIPT_PATH
@@ -472,9 +530,10 @@ class BootstrapManager(object):
          if proc.returncode:
             log("Bootstrap script failed with return code {rc}".format(rc=proc.returncode))
             sys.exit(proc.returncode)
-      except subprocess.CalledProcessError as e:
-         log(e.output)
-         raise e
+      except OSError as e:
+         err = "Failed to execute bootstrap script, err: {err}".format(err=e)
+         log(err)
+         raise Exception(err)
       log("Step 3.2.2 done, executed the fetched bootstrap script")
 
    def run(self):
@@ -526,23 +585,29 @@ if __name__ == "__main__":
       log(err)
       sys.exit(err)
 
-   # Restart ntp process in case a ntpServer value is passed.
-   if ntpServer != "":
-      configureAndRestartNTP(ntpServer)
+   try:
+      # Restart ntp process in case a ntpServer value is passed.
+      if ntpServer != "":
+         configureAndRestartNTP(ntpServer)
 
-   # Check for enrollment token expiry
-   expiryEpoch, parseSuccess = getExpiryFromToken(enrollmentToken)
-   if parseSuccess and time.time() > expiryEpoch:
-      expiry = datetime.datetime.fromtimestamp(expiryEpoch)
-      err = "Error: enrollment token expired. expired on: {expiry} GMT".format(expiry=str(expiry))
+      # Check for enrollment token expiry
+      expiryEpoch, parseSuccess = getExpiryFromToken(enrollmentToken)
+      if parseSuccess and time.time() > expiryEpoch:
+         expiry = datetime.datetime.fromtimestamp(expiryEpoch)
+         err = "Error: enrollment token expired. expired on: {expiry} GMT".format(
+            expiry=str(expiry))
+         log(err)
+         sys.exit(err)
+
+      # Check whether it is cloud or on prem
+      if cvAddr.find("arista.io") != -1:
+         bm = CloudBootstrapManager()
+      else:
+         bm = OnPremBootstrapManager()
+
+      # Run the script
+      bm.run()
+   except Exception as e:
+      err = "Custom bootstrap script failed, err: {err}".format(err=e)
       log(err)
       sys.exit(err)
-
-   # Check whether it is cloud or on prem
-   if cvAddr.find("arista.io") != -1:
-      bm = CloudBootstrapManager()
-   else:
-      bm = OnPremBootstrapManager()
-
-   # Run the script
-   bm.run()
