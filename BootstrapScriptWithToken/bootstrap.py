@@ -5,14 +5,18 @@
 
 import base64
 import datetime
+import hashlib
 import json
 import logging
 import logging.handlers
 import os
+import re
 import signal
 import socket
+import ssl
 import subprocess
 import sys
+import tempfile
 import time
 
 JSONDecodeError = getattr(json, "JSONDecodeError", ValueError)
@@ -67,7 +71,24 @@ INGEST_TOKEN = "token"
 TOKEN_FILE_PATH = "/tmp/token.tok"
 BOOT_SCRIPT_PATH = "/tmp/bootstrap-script"
 REDIRECTOR_PATH = "api/v3/services/arista.redirector.v1.AssignmentService/GetOne"
-VERSION = "2.0.2"
+VERSION = "2.0.3"
+# Whole-certificate SHA-256 fingerprints, including the directly trusted TLS root.
+DISTRUSTED_ROOT_FINGERPRINTS = frozenset((
+   "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b",
+   "d7a7a0fb5d7e2731d771e9484ebcdef71d5f0c3e0a2948782bc83ee0ea699ef4",
+   "7dd78d5f4f13459a83dff9abbba62edbaf6f2d102bf257fd712f4d9f2746ed8d",
+))
+# Match directly trusted compromised keys, including cross-signed certificates.
+DISTRUSTED_SPKI_HASHES = frozenset((
+   "ebed6475c2c2d80fcb199f3fe8dd6e6b3ce60b77eb15d4e42c3dec0c6f5b5105",
+   "49dd353dc2b919a3770645117d0e60c16115e7d1bc259eefe734b00ea434fe5f",
+   "e0254c7fcdc265e2f0f8a428dabb75ab4ae039b4872d62f5ee57f0877d5a8a41",
+   "5c0660a2b164910d8ff589c18e14552e9e0ec237dcefe2cb736d41a4811f81a0",
+   "43bffa19d6ef651451f6841e019931e96f6f2eaeff28ab4b6f1ce4576de2717b",
+   "63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8",
+   "ec4ffa1ad0ac88081314b7aaffef6a91f97cd57291bb5ba686c5415f5eb4f6b6",
+   "92c063d67e8f14db71d288e11266ffdaf69cbf115f7bab14f3bc2f68d25e0e30",
+))
 
 ##############  HELPER FUNCTIONS  ##############
 proxies = {"https": cvproxy, "http": cvproxy}
@@ -90,6 +111,62 @@ def log(msg):
    print(msg)
    if logger:
       logger.critical(msg)
+
+
+def runCertificateCommand(command, data=None):
+   """Inspect certificates without a shell or additional Python packages."""
+   proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+   output, error = proc.communicate(data)
+   if proc.returncode:
+      raise RuntimeError("Certificate command {cmd} failed: {error}".format(
+         cmd=command[0], error=error.decode("utf-8", "replace")))
+   return output
+
+
+def createBootstrapCaBundle():
+   """Create a private CA bundle for the custom bootstrap's HTTPS requests."""
+   bundlePath = (os.environ.get("REQUESTS_CA_BUNDLE") or os.environ.get("CURL_CA_BUNDLE") or
+                 requests.certs.where())
+   with open(bundlePath, "r") as bundle:
+      contents = bundle.read()
+   certificates = re.findall(
+      r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", contents, re.DOTALL)
+   if not certificates or "-----BEGIN TRUSTED CERTIFICATE-----" in contents:
+      raise RuntimeError("Unsupported or empty CA bundle: {path}".format(path=bundlePath))
+   allowed = []
+   for certificate in certificates:
+      fingerprint = hashlib.sha256(ssl.PEM_cert_to_DER_cert(certificate)).hexdigest()
+      if fingerprint not in DISTRUSTED_ROOT_FINGERPRINTS:
+         # Cross-signed certificates can share a compromised key but have different fingerprints.
+         publicKey = runCertificateCommand(
+            ["/usr/bin/openssl", "x509", "-pubkey", "-noout"], certificate.encode("ascii"))
+         spki = runCertificateCommand(
+            ["/usr/bin/openssl", "pkey", "-pubin", "-outform", "DER"], publicKey)
+         if hashlib.sha256(spki).hexdigest() not in DISTRUSTED_SPKI_HASHES:
+            allowed.append(certificate)
+   if not allowed:
+      raise RuntimeError("No trusted CA certificates remain after filtering")
+   # An explicit private CA file prevents environment settings from restoring excluded roots.
+   fd, temporaryPath = tempfile.mkstemp(prefix="ztp-bootstrap-ca-", suffix=".pem")
+   try:
+      with os.fdopen(fd, "w") as output:
+         output.write("\n".join(allowed) + "\n")
+   except Exception:
+      os.unlink(temporaryPath)
+      raise
+   log("Custom bootstrap CA bundle excludes {count} affected anchors".format(
+      count=len(certificates) - len(allowed)))
+   return temporaryPath
+
+
+def prepareBootstrapCaBundle():
+   """Require filtered CA trust before continuing the CVaaS bootstrap."""
+   try:
+      return createBootstrapCaBundle()
+   except Exception as error:
+      log("ERROR: Bootstrap CA filtering failed; aborting ZTP: {err}".format(err=error))
+      raise
 
 
 def monitorNtpSync():
@@ -297,6 +374,7 @@ class BootstrapManager(object):
       self.enrollAddr = None
       self.certificate = ""
       self.key = ""
+      self.requestCaBundle = None
 
       try:
          # setting Sysdb access variables
@@ -344,7 +422,8 @@ class BootstrapManager(object):
 
          headers = {"redirector_token": enrollmentToken}
          response = requests.post(self.redirectorURL.geturl(), data=payload,
-                                    headers=headers, proxies=proxies)
+                                    headers=headers, proxies=proxies,
+                                    verify=self.requestCaBundle or True)
          response.raise_for_status()
       except requests.exceptions.RequestException as e:
          err = "No assignment found. Error talking to redirector: {err}".format(err=e)
@@ -477,7 +556,8 @@ class BootstrapManager(object):
       # Making the request and writing to file
       try:
          response = requests.get(self.bootstrapURL.geturl(), headers=headers,
-                                 cert=(self.certificate, self.key), proxies=proxies)
+                                 cert=(self.certificate, self.key), proxies=proxies,
+                                 verify=self.requestCaBundle or True)
          response.raise_for_status()
       except requests.exceptions.RequestException as e:
          err = "Failed to fetch bootstrap script, err: {err}".format(err=e)
@@ -555,6 +635,20 @@ class CloudBootstrapManager(BootstrapManager):
       self.redirectorURL = self.bootstrapURL._replace(path=REDIRECTOR_PATH)
       self.tokenType = SECURE_TOKEN
       self.enrollAddr = None
+
+   def run(self):
+      # Prepare trust first so setup failures cannot reach enrollment or HTTPS requests.
+      self.requestCaBundle = prepareBootstrapCaBundle()
+      try:
+         super(CloudBootstrapManager, self).run()
+      finally:
+         bundlePath = self.requestCaBundle
+         self.requestCaBundle = None
+         if bundlePath is not None:
+            try:
+               os.unlink(bundlePath)
+            except OSError as error:
+               log("WARNING: Could not remove private bootstrap CA bundle: {err}".format(err=error))
 
 
 class OnPremBootstrapManager(BootstrapManager):

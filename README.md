@@ -45,6 +45,34 @@ Bootstrap script with a token provides an alternative way of ZTP enrolling an Ar
 
 ## Troubleshooting tips
 
+### Request-scoped CA distrust during CVaaS bootstrap
+
+Before the custom CVaaS bootstrap makes its redirector and script-download
+requests, it creates a private temporary PEM bundle excluding the affected
+emSign/AAA roots and directly trusted compromised intermediate keys. Certificate
+fingerprints and SHA-256 SPKI hashes identify the affected certificates.
+
+The input is the CA file selected by `REQUESTS_CA_BUNDLE`, then `CURL_CA_BUNDLE`,
+or otherwise `requests.certs.where()`. The input file is read only. Each request
+explicitly selects the filtered file with `verify=...`; server certificate and
+hostname verification remain enabled, and bootstrap downloads retain their
+client certificate and key. The private file is deleted when the CVaaS bootstrap
+run exits, including on failure. Repeated runs create independent private files.
+
+No system trust files or CA environment variables are changed. The filter does
+not configure TA or downloaded scripts. It uses Python standard-library APIs
+and `/usr/bin/openssl`, without requiring root or `update-ca-trust`.
+
+Filter setup is required. If the input CA file is unavailable, its format is
+unsupported, OpenSSL is unavailable, or filter creation fails, the script logs
+an error and exits with a nonzero status before enrollment or HTTPS requests.
+A certificate-verification failure after successful filter setup also stops the
+script; it does not retry with the original roots or disabled verification.
+
+Validate the supported EOS Python/Requests/urllib3 versions, proxy configurations,
+and affected TLS chains before release. Python 2 grammar checks do not establish
+Python 2 runtime behavior.
+
 ### ZTP-4-EXEC_SCRIPT_SIGNALED: Config script exited with an uncaught signal. Signal code: 1
 
 This usually indicates a problem executing the config script. In most cases this happens when the script is edited on a Microsoft Windows machine due
